@@ -1,29 +1,33 @@
 mygit_create_branch() {
   if [[ $1 == '-?' ]] ; then
-    echo 'mygit helper'
     echo 'Função para inicializar a operação de criação de branchs'
     echo 'Parâmetros aceitáveis da função -b'
     echo '1º {type} Corresponde aos tipos de branchs aceitáveis'
-    echo '    US - User Story'
-    echo '2º {wi} Corresponde ao numero da issue'
+    echo '    FEATURE - Extensa implementação com poucos ciclos de merge para a branch default'
+    echo '    US      - User Story, parte de uma feature, com mergers regulares para a branch default ou Feature'
+    echo '    TASK    - Parte de uma US'
+    echo '    BUG     - Correções de BUGs abertos para USs ou Features'
+    echo '    MANUT   - Correções de manutenções abertas por usuários'
+    echo '2º {wi} Corresponde ao número da issue'
     return
   fi
 
   local type=$1
   local work_item=$2
-  local accepted_types=("US")
+  local accepted_types=(FEATURE, US, TASK, BUG, MANUT)
 
   # Função que lida com a escolha do tipo da branch
   _handle_type_branch() {
 
     # Converte todos os caracteres para maiúsculo
     type=${type^^}
+    local re="^${type}, |, ${type}$|, ${type},"
 
     # Verifica se possui algum valor preenchido
     if [ ! -z $type ] ; then
 
       # Verifica se o valor preenchido é valido
-      if [[ ${accepted_types[*]} =~ ${type} ]] ; then
+      if [[ ${accepted_types[@]} =~ $re ]] ; then
         return
 
       # Imprime mensagem de erro para valores inválidos
@@ -33,8 +37,7 @@ mygit_create_branch() {
     fi
 
     # Solicita que seja informado um valor
-    printf 'Informe um dos seguintes tipos: '
-    printf '%s ' "${accepted_types[@]}"
+    echo "Informe um dos seguintes tipos: ${accepted_types[*]}"
     read read_type
     type=$read_type
 
@@ -59,7 +62,7 @@ mygit_create_branch() {
     fi
 
     # Solicita que seja informado um valor
-    echo -n 'Informe o número do work item: '
+    echo 'Informe o número do work item'
     read read_work_item
     work_item=$read_work_item
 
@@ -77,21 +80,26 @@ mygit_create_branch() {
 
 mygit_create_commit() {
   if [[ $1 == '-?' ]] ; then
-    echo 'mygit helper'
     echo 'Função para inicializar a operação de commit, formatando o texto do commit'
     echo 'Parâmetros aceitáveis da função -m'
-    echo '1º {comment} Comentário breve que será o titulo do commit, informar entre aspas'
+    echo '1º {comment} Comentário breve que será o título do commit, informar entre aspas'
     echo '2º {type} Corresponde aos tipos de commits aceitáveis'
-    echo '    US  - User Story'
-    echo '    WIP - Work in progess'
-    echo 'nº {wi} {wi} Uma sequencia de numeros de issues separadas por espaço'
+    echo '    CHORE  - Alterações de tarefas de build, automações e pipelines'
+    echo '    DOCS   - Adição ou alterações de documentações'
+    echo '    FEAT   - Nova funcionalidade ou rotina'
+    echo '    FIX    - Correções de bugs'
+    echo '    REFACT - Refatoração de código'
+    echo '    TEST   - Novo teste automatizado'
+    echo '    TYPO   - Corrige erros de digitação ou palavras escritas errado'
+    echo '    WIP    - Alterações que ainda não foram terminadas'
+    echo 'nº {wi} {wi} Uma sequência de números de issues separadas por espaço'
     return
   fi
 
   local title=$1
 
   local type=$2
-  local accepted_types=("US", "WIP")
+  local accepted_types=(CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP)
 
   shift # Descarta $1
   shift # Descarta $2
@@ -114,7 +122,7 @@ mygit_create_commit() {
     fi
 
     # Solicita que seja informado um valor
-    echo -n 'Informe um titulo breve para o commit: '
+    echo 'Informe um título breve para o commit'
     read read_title
     title=$read_title
 
@@ -126,10 +134,11 @@ mygit_create_commit() {
 
     # Converte todos os caracteres para maiúsculo
     type=${type^^}
+    local re="^${type}, |, ${type}$|, ${type},"
 
     # Verifica se algum valor válido foi informado
     if [ ! -z $type ] ; then
-      if [[ ${accepted_types[*]} =~ ${type} ]] ; then
+      if [[ ${accepted_types[@]} =~ $re ]] ; then
         return
       else
         echo "'$type' não é um tipo de commit valido"
@@ -137,13 +146,13 @@ mygit_create_commit() {
     fi
 
     # Tenta obter o tipo a partir do nome da branch
-    if [[ ${accepted_types[*]} =~ ${current_branch_array[0]^^} ]] ; then
+    re="^${current_branch_array[0]^^}, |, ${current_branch_array[0]^^}$|, ${current_branch_array[0]^^},"
+    if [[ ${accepted_types[@]} =~ $re ]] ; then
       type=${current_branch_array[0]^^}
       return
     fi
 
-    printf "Informe o tipo de commit: "
-    printf '%s ' "${accepted_types[@]}"
+    echo "Informe o tipo de commit: ${accepted_types[*]}"
     read read_type
     type=${read_type^^}
 
@@ -154,75 +163,72 @@ mygit_create_commit() {
   _handle_work_item_commit() {
     local re='^[0-9]+$'
 
-    # Tenta obter o numero do work item pelo nome da branch
-    if [[ ${current_branch_array[1]} =~ $re ]] ; then
-      work_item_concat="$work_item_concat #${current_branch_array[1]}"
-    fi
+    # Função que percorre a lista de work itens
+    __handle_mutiple_work_itens() {
+      for wi in $work_itens
+      do
 
-    # Percorre a lista de parâmetros
-    for wi in $work_itens
-    do
+        local re_repeat="#${wi} |#${wi}$"
 
-      # Imprime os itens que não são válidos
-      if ! [[ $wi =~ $re ]] ; then
-        echo "'$wi' não é um número e não pode ser usado como work item"
+        # Imprime os itens que não são válidos
+        if ! [[ $wi =~ $re ]] ; then
+          echo "'$wi' não é um número e não pode ser usado como work item"
 
-      # Concatena os itens que são validos
-      elif ! [[ $work_item_concat == *$wi* ]] ; then
-        work_item_concat="$work_item_concat #$wi"
-      fi
-
-    done
-
-    # Função para solicitar um work item caso nenhum seja encontrado
-    _handle_reading_work_item_commit() {
-
-      # Confirma se não ha nenhum valor valido contabilizado
-      if [[ -z $work_item_concat ]] ; then
-        echo -n 'Informe um numero de work item: '
-        read read_work_item
-        work_item_concat=$read_work_item
-
-        # Mantem a recursividade do metodo caso não nada seja informado
-        if [[ -z $work_item_concat ]] ; then
-          _handle_reading_work_item_commit
-
-        # Valida se o valor informado é um work item valido
-        elif ! [[ $work_item_concat =~ $re ]] ; then
-          echo "'$work_item_concat' não é um numero e não pode ser usado como work item"
-          work_item_concat=''
-          _handle_reading_work_item_commit
-
-        # Acrescenta '#' na frente do work item
-        else
-          work_item_concat="#$work_item_concat"
+        # Concatena os itens que são validos
+        elif ! [[ $work_item_concat =~ $re_repeat ]] ; then
+          ! [[ -z $work_item_concat ]] && work_item_concat="$work_item_concat #$wi" || work_item_concat="#$wi"
         fi
-      fi
+
+      done
     }
 
-    _handle_reading_work_item_commit
+    # Função para solicitar um work item caso nenhum seja encontrado
+    __handle_reading_work_item_commit() {
+
+        # Verifica se já foi identificado algum wi
+        if ! [[ -z $work_item_concat ]] ; then
+          return
+        fi
+
+        # Solicita que seja informado um valor
+        echo 'Informe a lista de work itens'
+        read read_work_itens
+        work_itens=${read_work_itens[@]}
+
+        __handle_mutiple_work_itens
+
+        __handle_reading_work_item_commit
+    }
+
+    # Tenta obter o numero do work item pelo nome da branch
+    if [[ ${current_branch_array[1]} =~ $re ]] ; then
+      work_item_concat="#${current_branch_array[1]}"
+    fi
+
+    __handle_mutiple_work_itens
+
+    __handle_reading_work_item_commit
   }
 
   _handle_title_commit
   _handle_type_commit
   _handle_work_item_commit
 
-  echo "($type) $work_item_concat - $title"
+  echo "$type: $work_item_concat - $title"
 
   # Chama o operado do git para fazer o commit
-  git commit -m "($type) $work_item_concat - $title"
+  git commit -m "$type: $work_item_concat - $title"
 }
 
 #######################################################
 
 mygit_helper() {
-  echo 'mygit helper'
   echo '-v             Imprime a versão'
   echo '-?             Imprime o menu de ajuda'
   echo '-b             Inicializa a operação de criação de branch'
   echo '-b -?          Lista os parâmetros aceitáveis da função de -b'
   echo '-b {type}      Inicializa a operação de criação de branch passando o tipo'
-  echo '-b {type} {wi} Inicializa a operação de criação de branch passando o tipo e numero do work item'
+  echo '-b {type} {wi} Inicializa a operação de criação de branch passando o tipo e número do work item'
   echo '-m             Inicializa a operação de criação de um commit'
   echo '-m -?          Lista os parâmetros aceitáveis da função de -m'
   echo '-m {comment}          Inicializa a operação de criação de um commit passando o comentário'
@@ -239,7 +245,7 @@ mygit() {
 
   # Verifica se recebeu algum comando de entrada
   if [ -z $command ] ; then
-    echo 'Nenhum operador informado, use mygit -? para consultar as operações disponíveis'
+    echo 'Nenhum operador informado, use o operador -? para consultar as operações disponíveis'
     return
   fi
 
@@ -262,7 +268,6 @@ mygit() {
     mygit_create_commit "$temp_title" $*
 
   else
-    echo 'Operação inválida, use mygit -? para consultar as operações disponíveis'
+    echo 'Operação inválida, use o operador -? para consultar as operações disponíveis'
   fi
-
 }
