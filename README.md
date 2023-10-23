@@ -29,6 +29,6 @@ Para configurar este projeto em seu ambiente basta seguir os passos listados aba
 - Para que as funções criadas no arquivo fiquem acessíveis, no terminal bash execute o comando `source .bashrc`
   - Esse comando vai habilitar a execução de todas as funções públicas do arquivo, você pode testar a funcionalidade executando o comando `mygit -v`
   - Essas funções ainda não estão disponíveis no terminal do windows, elas só podem ser executadas como o exemplo citado acima por meio do bash. Para que possa ser executado pelo windows, é necessário criar um alias no git
-- Para conseguir executar as funções desse arquivo como extensões do git, execute o seguinte comando `git config --global alias.my '!bash -c "source $HOME/.bashrc && mygit $*"'`
+- Para conseguir executar as funções desse arquivo como extensões do git, execute o seguinte comando `git config --global alias.my '!bash -c "source $HOME/.bashrc && mygit \"$1\" \"$2\" ${*:3} "'`
   - Esse comando cria um alias global para o git com o nome `my`, garante a inicialização do arquivo .bashrc, e direciona a função mygit passando todos os parâmetros fornecidos para o alias
 - Agora já é possível chamar a função `mygit` com o comando `git my`, e este pode ser chamado inclusive pelo terminal do windows
