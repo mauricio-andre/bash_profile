@@ -3,18 +3,28 @@ mygit_create_branch() {
     echo 'Função para inicializar a operação de criação de branchs'
     echo 'Parâmetros aceitáveis da função -b'
     echo '1º {type} Corresponde aos tipos de branchs aceitáveis'
+    # Artefatos da azure
     echo '    FEATURE - Extensa implementação com poucos ciclos de merge para a branch default'
     echo '    US      - User Story, parte de uma feature, com mergers regulares para a branch default ou Feature'
     echo '    TASK    - Parte de uma US'
     echo '    BUG     - Correções de BUGs abertos para USs ou Features'
     echo '    MANUT   - Correções de manutenções abertas por usuários'
+    # Tipos aceitos no texto de commit
+    echo '    CHORE  - Alterações de tarefas de build, automações e pipelines'
+    echo '    DOCS   - Adição ou alterações de documentações'
+    echo '    FEAT   - Nova funcionalidade ou rotina'
+    echo '    FIX    - Correções de bugs'
+    echo '    REFACT - Refatoração de código'
+    echo '    TEST   - Novo teste automatizado'
+    echo '    TYPO   - Corrige erros de digitação ou palavras escritas errado'
+    echo '    WIP    - Alterações que ainda não foram terminadas'
     echo '2º {wi} Corresponde ao número da issue'
     return
   fi
 
   local type=$1
   local work_item=$2
-  local accepted_types=(FEATURE, US, TASK, BUG, MANUT)
+  local accepted_types=(FEATURE, US, TASK, BUG, MANUT, CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP)
 
   # Função que lida com a escolha do tipo da branch
   _handle_type_branch() {
@@ -83,7 +93,8 @@ mygit_create_commit() {
     echo 'Função para inicializar a operação de commit, formatando o texto do commit'
     echo 'Parâmetros aceitáveis da função -m'
     echo '1º {comment} Comentário breve que será o título do commit, informar entre aspas'
-    echo '2º {type} Corresponde aos tipos de commits aceitáveis'
+    echo '2º {scope} Informação opcional referente ao escopo da alteração'
+    echo '3º {type} Corresponde aos tipos de commits aceitáveis (inferido pelo nome da branch)'
     echo '    CHORE  - Alterações de tarefas de build, automações e pipelines'
     echo '    DOCS   - Adição ou alterações de documentações'
     echo '    FEAT   - Nova funcionalidade ou rotina'
@@ -92,18 +103,17 @@ mygit_create_commit() {
     echo '    TEST   - Novo teste automatizado'
     echo '    TYPO   - Corrige erros de digitação ou palavras escritas errado'
     echo '    WIP    - Alterações que ainda não foram terminadas'
-    echo 'nº {wi} {wi} Uma sequência de números de issues separadas por espaço'
+    echo 'nº {wi} {wi} Uma sequência de números de issues separadas por espaço (inferido pelo nome da branch)'
     return
   fi
 
   local title=$1
+  local scope=$2
 
-  local type=$2
+  local type=$3
   local accepted_types=(CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP)
 
-  shift # Descarta $1
-  shift # Descarta $2
-  local work_itens=$@ # Atribui todos os valores restantes
+  local work_itens=${*:4} # Atribui todos os valores após a 4 posição
   local work_item_concat=""
 
   # Captura nome da branch atual
@@ -127,6 +137,27 @@ mygit_create_commit() {
     title=$read_title
 
     _handle_title_commit
+  }
+
+  # Função para lidar com o escopo
+  _handle_scope_commit() {
+     # Torna a primeira letra do escopo commit maiúscula
+    scope=${scope^}
+
+    # Verifica se o escopo do commit já foi informado
+    if ! [[ -z $scope ]] ; then
+      return
+    fi
+
+    # Verifica se algum parâmetro foi passado na requsição
+    if ! [[ -z $1 ]] ; then
+      return
+    fi
+
+    # Pergunta se deseja informar um escopo
+    echo 'Deseja informar um escopo para esse commit (opcional)'
+    read read_scope
+    scope=${read_scope^}
   }
 
   # Função para lidar com o tipo do commit
@@ -168,7 +199,7 @@ mygit_create_commit() {
       for wi in $work_itens
       do
 
-        local re_repeat="#${wi} |#${wi}$"
+        local re_repeat="- #${wi}"$'\n'"|- #${wi}$"
 
         # Imprime os itens que não são válidos
         if ! [[ $wi =~ $re ]] ; then
@@ -176,7 +207,7 @@ mygit_create_commit() {
 
         # Concatena os itens que são validos
         elif ! [[ $work_item_concat =~ $re_repeat ]] ; then
-          ! [[ -z $work_item_concat ]] && work_item_concat="$work_item_concat #$wi" || work_item_concat="#$wi"
+          work_item_concat+=$'\n'"- #$wi"
         fi
 
       done
@@ -202,7 +233,7 @@ mygit_create_commit() {
 
     # Tenta obter o numero do work item pelo nome da branch
     if [[ ${current_branch_array[1]} =~ $re ]] ; then
-      work_item_concat="#${current_branch_array[1]}"
+      work_item_concat=$'\n'"- #${current_branch_array[1]}"
     fi
 
     __handle_mutiple_work_itens
@@ -211,13 +242,20 @@ mygit_create_commit() {
   }
 
   _handle_title_commit
+  _handle_scope_commit "$1"
   _handle_type_commit
   _handle_work_item_commit
 
-  echo "$type: $work_item_concat - $title"
+  local text_commit=$"$type($scope): $title"$'\n'"$work_item_concat"
+
+  if [[ -z $scope ]] ; then
+    text_commit=$"$type: $title"$'\n'"$work_item_concat"
+  fi
+
+  echo "$text_commit"
 
   # Chama o operado do git para fazer o commit
-  git commit -m "$type: $work_item_concat - $title"
+  git commit -m "$text_commit"
 }
 
 #######################################################
@@ -232,8 +270,9 @@ mygit_helper() {
   echo '-m             Inicializa a operação de criação de um commit'
   echo '-m -?          Lista os parâmetros aceitáveis da função de -m'
   echo '-m {comment}          Inicializa a operação de criação de um commit passando o comentário'
-  echo '-m {comment} {type}   Inicializa a operação de criação de um commit passando o comentário e tipo'
-  echo '-m {comment} {type} [{work item list}]          Inicializa a operação de criação de um commit passando o comentário, tipo e lista de work itens'
+  echo '-m {comment} {scope}  Inicializa a operação de criação de um commit passando o comentário e escopo'
+  echo '-m {comment} {scope} {type}   Inicializa a operação de criação de um commit passando o comentário, escopo e tipo'
+  echo '-m {comment} {scope} {type} [{work item list}]          Inicializa a operação de criação de um commit passando o comentário, escopo, tipo e lista de work itens'
 }
 
 #######################################################
@@ -263,9 +302,7 @@ mygit() {
 
   # Realiza um commit
   elif [ $command == '-m' ] ; then
-    local temp_title=$1
-    shift # Descarta segundo valor do conjunto, texto
-    mygit_create_commit "$temp_title" $*
+    mygit_create_commit "$@"
 
   else
     echo 'Operação inválida, use o operador -? para consultar as operações disponíveis'
