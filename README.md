@@ -7,7 +7,12 @@ Este projeto foi criado para exemplificar como pode-se criar operações avança
 
 Esse projeto implementa extensões para a criação de branchs e realização de commits com formatações especificas, sendo essas:
 - Branchs são criadas com um termo representativo e o número de uma issue, Ex: `US/1234`
-- Commits são criados com a definição de um tipo, uma lista de issues, e uma descrição, Ex: `WIP: #1234 - Descrição do commit`
+- Commits são criados com a definição de um tipo, escopo, descrição e uma lista de issues, Ex:
+```
+WIP: Descrição do commit
+
+- #1234
+```
 
 Esse pacote implementa uma função de ajuda que lista as operações disponíveis e pode ser acionada com a chamada da função `mygit_helper` ou chamando a função principal com o operador ? `mygit -?`
 
