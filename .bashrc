@@ -180,6 +180,19 @@ mygit_create_commit() {
     re="^${current_branch_array[0]^^}, |, ${current_branch_array[0]^^}$|, ${current_branch_array[0]^^},"
     if [[ ${accepted_types[@]} =~ $re ]] ; then
       type=${current_branch_array[0]^^}
+
+      # Se o texto do commit não foi informado na execução do comando
+      # e um tipo foi inferido, questionar se deseja seguir com valores inferidos
+      if [[ -z $1 ]] ; then
+        echo "O tipo ${type} foi inferido, presione enter para aceitar ou digite um novo tipo: ${accepted_types[*]}"
+        read read_type
+
+        if [ ! -z $read_type ] ; then
+          type=${read_type^^}
+          _handle_type_commit "$1"
+        fi
+      fi
+
       return
     fi
 
@@ -218,6 +231,22 @@ mygit_create_commit() {
 
         # Verifica se já foi identificado algum wi
         if ! [[ -z $work_item_concat ]] ; then
+
+          # Se o texto do commit não foi informado na execução do comando
+          # e um numero de WI foi inferido, questionar se deseja seguir com valores inferidos
+          if [[ -z $1 ]] ; then
+            local temp=${work_item_concat//$'\n'- #/, }
+            temp=${temp#*, }
+            echo "o numero ${temp} foi inferido, presione enter para seguir ou digite uma lista de work itens adicionais"
+            read read_work_itens
+
+            if [[ ! -z $read_work_itens[@] ]] ; then
+              work_itens=${read_work_itens[@]}
+
+              __handle_mutiple_work_itens
+            fi
+          fi
+
           return
         fi
 
@@ -227,8 +256,7 @@ mygit_create_commit() {
         work_itens=${read_work_itens[@]}
 
         __handle_mutiple_work_itens
-
-        __handle_reading_work_item_commit
+        __handle_reading_work_item_commit "$1"
     }
 
     # Tenta obter o numero do work item pelo nome da branch
@@ -237,14 +265,13 @@ mygit_create_commit() {
     fi
 
     __handle_mutiple_work_itens
-
-    __handle_reading_work_item_commit
+    __handle_reading_work_item_commit "$1"
   }
 
   _handle_title_commit
   _handle_scope_commit "$1"
-  _handle_type_commit
-  _handle_work_item_commit
+  _handle_type_commit "$1"
+  _handle_work_item_commit "$1"
 
   local text_commit=$"$type($scope): $title"$'\n'"$work_item_concat"
 
@@ -256,6 +283,20 @@ mygit_create_commit() {
 
   # Chama o operado do git para fazer o commit
   git commit -m "$text_commit"
+}
+
+#######################################################
+
+mygit_push_origin() {
+  if [[ $1 == '-?' ]] ; then
+    echo 'Função para inicializar a operação de push das alterações'
+    echo 'O comando push origin é realizado com o nome da branch atual'
+    return
+  fi
+
+  local current_branch=$(git branch | grep -oP '^\* \K.*')
+
+  git push origin $current_branch
 }
 
 #######################################################
@@ -303,6 +344,10 @@ mygit() {
   # Realiza um commit
   elif [ $command == '-m' ] ; then
     mygit_create_commit "$@"
+
+  # Realiza um push origin
+  elif [ $command == '-p' ] ; then
+    mygit_push_origin
 
   else
     echo 'Operação inválida, use o operador -? para consultar as operações disponíveis'

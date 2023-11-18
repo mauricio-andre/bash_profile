@@ -2,20 +2,20 @@
 
 Este projeto foi criado para exemplificar como pode-se criar operações avançadas no bash e integrá-las como uma extensão de operações do git, permitindo seu uso inclusive por outros terminais que consigam reconhecer operações do git.
 
-
 ## Operações disponíveis
 
-Esse projeto implementa extensões para a criação de branchs e realização de commits com formatações especificas, sendo essas:
-- Branchs são criadas com um termo representativo e o número de uma issue, Ex: `US/1234`
+Esse projeto implementa extensões para a criação de branchs, operação de push origin para a branch atual e realização de commits com formatações especificas, sendo essas:
+
+- Branchs são criadas com um termo representativo e o número de uma issue, Ex: `FIX/1234`
 - Commits são criados com a definição de um tipo, escopo, descrição e uma lista de issues, Ex:
-```
-WIP: Descrição do commit
+
+```md
+WIP(Scope): Descrição do commit
 
 - #1234
 ```
 
 Esse pacote implementa uma função de ajuda que lista as operações disponíveis e pode ser acionada com a chamada da função `mygit_helper` ou chamando a função principal com o operador ? `mygit -?`
-
 
 ## Configuração
 
