@@ -37,3 +37,9 @@ Para configurar este projeto em seu ambiente basta seguir os passos listados aba
 - Para conseguir executar as funções desse arquivo como extensões do git, execute o seguinte comando `git config --global alias.my '!bash -c "source $HOME/.bashrc && mygit \"$1\" \"$2\" \"$3\" ${*:4} "'`
   - Esse comando cria um alias global para o git com o nome `my`, garante a inicialização do arquivo .bashrc, e direciona a função mygit passando todos os parâmetros fornecidos para o alias
 - Agora já é possível chamar a função `mygit` com o comando `git my`, e este pode ser chamado inclusive pelo terminal do windows
+
+## Problemas conhecidos
+
+Ao usar terminais personalizados no linux, como o zsh, o acesso direto a funções como `mygit` podem não estar disponíveis, neste caso consulte o manual do terminal utilizado para descobrir como incluir as funções personalizadas ao seu terminal. Em qualquer terminal personalizado onde a função direta não possa ser acessada, o comando via alias do git é disponibilizado corretamente.
+
+Alguns terminais, como o zsh podem apresentar erro ao realizar operações com o comando `-?`, isso ocorre pois em alguns desses terminais o caracter `?` é usado para descrever qualquer outro caracter. O problema pode ser resolvido colocando o texto que contem esse caracter entre aspas, ou você pode consultar o manual do seu terminal para verificar se o mesmo oferece um meio de desabilitar esse comportamento.
