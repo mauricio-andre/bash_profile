@@ -4,7 +4,7 @@ Este projeto foi criado para exemplificar como pode-se criar operações avança
 
 ## Operações disponíveis
 
-Esse projeto implementa extensões para a criação de branchs, operação de push origin para a branch atual e realização de commits com formatações especificas, sendo essas:
+Esse projeto implementa extensões para a criação de branchs, operação de push origin para a branch atual, exclusão de todas as branchs locais sem merge pendente e realização de commits com formatações especificas, sendo essas:
 
 - Branchs são criadas com um termo representativo e o número de uma issue, Ex: `FIX/1234`
 - Commits são criados com a definição de um tipo, escopo, descrição e uma lista de issues, Ex:
@@ -14,6 +14,8 @@ WIP(Scope): Descrição do commit
 
 - #1234
 ```
+
+O padrão apresentado está em acordo com o conventional commits: [https://www.conventionalcommits.org/pt-br/v1.0.0/](https://www.conventionalcommits.org/pt-br/v1.0.0/)
 
 Esse pacote implementa uma função de ajuda que lista as operações disponíveis e pode ser acionada com a chamada da função `mygit_helper` ou chamando a função principal com o operador ? `mygit -?`
 
