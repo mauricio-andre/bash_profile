@@ -3,13 +3,6 @@ mygit_create_branch() {
     echo 'Função para inicializar a operação de criação de branchs'
     echo 'Parâmetros aceitáveis da função -b'
     echo '1º {type} Corresponde aos tipos de branchs aceitáveis'
-    # Artefatos da azure
-    echo '    FEATURE - Extensa implementação com poucos ciclos de merge para a branch default'
-    echo '    US      - User Story, parte de uma feature, com mergers regulares para a branch default ou Feature'
-    echo '    TASK    - Parte de uma US'
-    echo '    BUG     - Correções de BUGs abertos para USs ou Features'
-    echo '    MANUT   - Correções de manutenções abertas por usuários'
-    # Tipos aceitos no texto de commit
     echo '    CHORE  - Alterações de tarefas de build, automações e pipelines'
     echo '    DOCS   - Adição ou alterações de documentações'
     echo '    FEAT   - Nova funcionalidade ou rotina'
@@ -24,7 +17,7 @@ mygit_create_branch() {
 
   local type=$1
   local work_item=$2
-  local accepted_types=(FEATURE, US, TASK, BUG, MANUT, CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP)
+  local accepted_types=(CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP)
 
   # Função que lida com a escolha do tipo da branch
   _handle_type_branch() {
@@ -301,6 +294,19 @@ mygit_push_origin() {
 
 #######################################################
 
+mygit_prune_branch() {
+  if [[ $1 == '-?' ]] ; then
+    echo 'Função para excluir todas as branchs locais sem alterações pendentes de push'
+    echo 'Exceto as branchs master, main, release e develop se existirem'
+    echo '(Use com cuidado)'
+    return
+  fi
+
+  git branch --merged | grep -Ev "(^\*|master|main|release|develop)" | xargs git branch -d
+}
+
+#######################################################
+
 mygit_helper() {
   echo '-v             Imprime a versão'
   echo '-?             Imprime o menu de ajuda'
@@ -314,12 +320,16 @@ mygit_helper() {
   echo '-m {comment} {scope}  Inicializa a operação de criação de um commit passando o comentário e escopo'
   echo '-m {comment} {scope} {type}   Inicializa a operação de criação de um commit passando o comentário, escopo e tipo'
   echo '-m {comment} {scope} {type} [{work item list}]          Inicializa a operação de criação de um commit passando o comentário, escopo, tipo e lista de work itens'
+  echo '-p             Realiza a operação de push das alterações para a branch atual'
+  echo '-p -?          Fornece mais detalhes sobre o comando -p'
+  echo '-prune         (Cuidado) Excluí as branchs locais que não possuem commits pendentes de push'
+  echo '-prune -?      Fornece mais detalhes sobre como o comando -prune funciona'
 }
 
 #######################################################
 
 mygit() {
-  local version='1.0.0'
+  local version='1.1.0'
   local command=$1
   shift # Descarta o valor de command do conjunto $*
 
@@ -348,6 +358,10 @@ mygit() {
   # Realiza um push origin
   elif [ $command == '-p' ] ; then
     mygit_push_origin
+
+  # Excluí as branch locais sem commits pendentes de push
+  elif [ $command == '-prune' ] ; then
+    mygit_prune_branch
 
   else
     echo 'Operação inválida, use o operador -? para consultar as operações disponíveis'
