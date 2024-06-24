@@ -244,12 +244,11 @@ mygit_create_commit() {
         fi
 
         # Solicita que seja informado um valor
-        echo 'Informe a lista de work itens'
+        echo 'Deseja informar uma lista de work itens (opcional)'
         read read_work_itens
         work_itens=${read_work_itens[@]}
 
         __handle_mutiple_work_itens
-        __handle_reading_work_item_commit "$1"
     }
 
     # Tenta obter o numero do work item pelo nome da branch
@@ -259,6 +258,11 @@ mygit_create_commit() {
 
     __handle_mutiple_work_itens
     __handle_reading_work_item_commit "$1"
+
+    # Adiciona mais uma quebra de linha caso algum WI foi informado
+    if ! [[ -z $work_item_concat ]] ; then
+      work_item_concat=$'\n'$work_item_concat;
+    fi
   }
 
   _handle_title_commit
@@ -266,10 +270,10 @@ mygit_create_commit() {
   _handle_type_commit "$1"
   _handle_work_item_commit "$1"
 
-  local text_commit=$"$type($scope): $title"$'\n'"$work_item_concat"
+  local text_commit=$"$type($scope): $title $work_item_concat"
 
   if [[ -z $scope ]] ; then
-    text_commit=$"$type: $title"$'\n'"$work_item_concat"
+    text_commit=$"$type: $title $work_item_concat"
   fi
 
   echo "$text_commit"
