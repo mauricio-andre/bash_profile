@@ -311,6 +311,112 @@ mygit_prune_branch() {
 
 #######################################################
 
+mygit_create_releasenotes() {
+  if [[ $1 == '-?' ]] ; then
+    echo 'Função que gera um arquivo de release notes na pasta docs do projeto'
+    echo 'Todos os commits entre as duas últimas tags de release serão listados'
+    return
+  fi
+
+  local types=(CHORE DOCS FEAT FIX REFACT TEST TYPO WIP MERGE UNKNOWN)
+
+  # Cria o array que agrupa os tipos de commit
+  declare -A grouped_commits
+  for type in "${types[@]}"; do
+    grouped_commits[$type]=""
+  done
+
+  # Função para lidar com a localização das tags do git
+  _get_latest_tags() {
+    # Localiza o nome da branch default do projeto
+    local default_branch=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+
+    # Comando Git para pegar as duas ultimas tags no formato *.*.* ou *.*.*-release criadas na branch default
+    git tag --list --merged $default_branch --sort=-creatordate | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-release)?$' | head -n 2
+  }
+
+  # Carregar a lista de commits
+  _get_commit_list() {
+    local latest_tag=$1
+    local second_latest_tag=$2
+
+    if [[ -z $second_latest_tag ]] ; then
+      # Carrega todos os commits anteriores a ultima tag
+      git log --pretty=format:"%s" --no-merges ${latest_tag}
+    else
+      # Carrega todos os commits feitos entre as duas tags
+      git log --pretty=format:"%s" --no-merges ${second_latest_tag}..${latest_tag}
+    fi
+  }
+
+  # Preenche o agrupador de commits
+  _fill_grouped_commits() {
+    # Converte o texto dos commits em um array por mensagem
+    IFS=$'\n' read -r -d '' -a commits_array <<< "$1"
+
+    for commit in "${commits_array[@]}"; do
+      # Extrai a primeira palavra do commit e converte para maiúsculas
+      local first_word=$(echo "$commit" | grep -oE '^[^!:(]+' | awk '{print toupper($1)}')
+
+      # Verifica se a primeira palavra está na lista de tipos
+      if [[ ${types[@]} =~ $first_word ]] ; then
+          grouped_commits[$first_word]+="$commit"$'\n'
+      else
+          grouped_commits["UNKNOWN"]+="$commit"$'\n'
+      fi
+    done
+  }
+
+  # Cria o arquivo de release notes
+  _create_file() {
+    local output_dir="docs/release-notes"
+    local output_file="$(date +%F).md"
+    local output_path="$output_dir/$output_file"
+
+    # Cria o diretório se não existir
+    mkdir -p "$output_dir"
+
+    # Remove o arquivo se ele já existir
+    if [ -f "$output_path" ]; then
+        rm "$output_path"
+    fi
+
+    echo "# $(date +%F)"$'\n' >> "$output_path"
+    echo "Confira todas as novidades liberadas na versão $latest_tag do produto"$'\n' >> "$output_path"
+
+    # Imprime os commits agrupados
+    for type in "${types[@]}"; do
+      if [ -n "${grouped_commits[$type]}" ]; then
+        echo "=== $type ==="
+        echo "=== $type ===" >> "$output_path"
+        echo "${grouped_commits[$type]}"
+        echo "${grouped_commits[$type]}" >> "$output_path"
+      fi
+    done
+  }
+
+  # Chama a função para carregar as tags
+  local tags=($(_get_latest_tags))
+  local latest_tag=${tags[0]}
+  local second_latest_tag=${tags[1]}
+
+  # Verifica se existe pelo menos uma tag válida
+  if [ ${#tags[@]} -lt 1 ]; then
+    echo "Esse projeto ainda não possuí nenhuma tag de release publicada"
+    return
+  fi
+
+  # Chama a função para carregar os commits
+  local commits=$(_get_commit_list $latest_tag $second_latest_tag)
+
+  echo "Gerando release notes das alterações entre $latest_tag e $second_latest_tag"
+
+  _fill_grouped_commits "$commits"
+  _create_file
+}
+
+#######################################################
+
 mygit_helper() {
   echo '-v             Imprime a versão'
   echo '-?             Imprime o menu de ajuda'
@@ -328,6 +434,8 @@ mygit_helper() {
   echo '-p -?          Fornece mais detalhes sobre o comando -p'
   echo '-prune         (Cuidado) Excluí as branchs locais que não possuem commits pendentes de push'
   echo '-prune -?      Fornece mais detalhes sobre como o comando -prune funciona'
+  echo '-release-notes Gera um arquivo de release notes com sa ultimas liberações do produto'
+  echo '-release-notes -? Fornece mais detalhes sobre a função de release notes'
 }
 
 #######################################################
@@ -366,6 +474,10 @@ mygit() {
   # Excluí as branch locais sem commits pendentes de push
   elif [ $command == '-prune' ] ; then
     mygit_prune_branch
+
+  # Cria um arquivo de release-notes na pasta docs
+  elif [ $command == '-release-notes' ] ; then
+    mygit_create_releasenotes
 
   else
     echo 'Operação inválida, use o operador -? para consultar as operações disponíveis'
