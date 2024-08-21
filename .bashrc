@@ -318,7 +318,7 @@ mygit_create_releasenotes() {
     return
   fi
 
-  local types=(CHORE DOCS FEAT FIX REFACT TEST TYPO WIP MERGE UNKNOWN)
+  local types=(BREAKING-CHANGES CHORE DOCS FEAT FIX REFACT TEST TYPO WIP MERGE UNKNOWN)
 
   # Cria o array que agrupa os tipos de commit
   declare -A grouped_commits
@@ -358,8 +358,11 @@ mygit_create_releasenotes() {
       # Extrai a primeira palavra do commit e converte para maiúsculas
       local first_word=$(echo "$commit" | grep -oE '^[^!:(]+' | awk '{print toupper($1)}')
 
+      # Verifica se é um BREAKING-CHANGES
+      if echo "$commit" | grep -qE '^[^:]*!'; then
+          grouped_commits["BREAKING-CHANGES"]+="$commit"$'\n'
       # Verifica se a primeira palavra está na lista de tipos
-      if [[ ${types[@]} =~ $first_word ]] ; then
+      elif [[ ${types[@]} =~ $first_word ]] ; then
           grouped_commits[$first_word]+="$commit"$'\n'
       else
           grouped_commits["UNKNOWN"]+="$commit"$'\n'
@@ -370,7 +373,7 @@ mygit_create_releasenotes() {
   # Cria o arquivo de release notes
   _create_file() {
     local output_dir="docs/release-notes"
-    local output_file="$(date +%F).md"
+    local output_file="$(date +%F) $latest_tag.md"
     local output_path="$output_dir/$output_file"
 
     # Cria o diretório se não existir
@@ -381,14 +384,14 @@ mygit_create_releasenotes() {
         rm "$output_path"
     fi
 
-    echo "# $(date +%F)"$'\n' >> "$output_path"
+    echo "# $(date +%F) $latest_tag"$'\n' >> "$output_path"
     echo "Confira todas as novidades liberadas na versão $latest_tag do produto"$'\n' >> "$output_path"
 
     # Imprime os commits agrupados
     for type in "${types[@]}"; do
       if [ -n "${grouped_commits[$type]}" ]; then
-        echo "=== $type ==="
-        echo "=== $type ===" >> "$output_path"
+        echo "## $type"
+        echo "## $type" >> "$output_path"
         echo "${grouped_commits[$type]}"
         echo "${grouped_commits[$type]}" >> "$output_path"
       fi
