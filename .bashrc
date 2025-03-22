@@ -11,13 +11,14 @@ mygit_create_branch() {
     echo '    TEST   - Novo teste automatizado'
     echo '    TYPO   - Corrige erros de digitação ou palavras escritas errado'
     echo '    WIP    - Alterações que ainda não foram terminadas'
+    echo '    MERGE  - Realizado merge com alguma branch'
     echo '2º {wi} Corresponde ao número da issue'
     return
   fi
 
   local type=$1
   local work_item=$2
-  local accepted_types=(CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP)
+  local accepted_types=(CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP, MERGE)
 
   # Função que lida com a escolha do tipo da branch
   _handle_type_branch() {
@@ -96,6 +97,7 @@ mygit_create_commit() {
     echo '    TEST   - Novo teste automatizado'
     echo '    TYPO   - Corrige erros de digitação ou palavras escritas errado'
     echo '    WIP    - Alterações que ainda não foram terminadas'
+    echo '    MERGE  - Realizado merge com alguma branch'
     echo 'nº {wi} {wi} Uma sequência de números de issues separadas por espaço (inferido pelo nome da branch)'
     return
   fi
@@ -104,7 +106,7 @@ mygit_create_commit() {
   local scope=$2
 
   local type=$3
-  local accepted_types=(CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP)
+  local accepted_types=(CHORE, DOCS, FEAT, FIX, REFACT, TEST, TYPO, WIP, MERGE)
 
   local work_itens=${*:4} # Atribui todos os valores após a 4 posição
   local work_item_concat=""
@@ -306,7 +308,7 @@ mygit_prune_branch() {
     return
   fi
 
-  git branch --merged | grep -Ev "(^\*|master|main|release|develop)" | xargs git branch -d
+  git branch --merged | grep -Ev "(^\*|master|main|release|develop*)" | xargs git branch -d
 }
 
 #######################################################
@@ -342,32 +344,52 @@ mygit_create_releasenotes() {
 
     if [[ -z $second_latest_tag ]] ; then
       # Carrega todos os commits anteriores a ultima tag
-      git log --pretty=format:"%s" --no-merges ${latest_tag}
+      git log --pretty=format:"%B__COMMIT_BREAK__" --no-merges ${latest_tag}
     else
       # Carrega todos os commits feitos entre as duas tags
-      git log --pretty=format:"%s" --no-merges ${second_latest_tag}..${latest_tag}
+      git log --pretty=format:"%B__COMMIT_BREAK__" --no-merges ${second_latest_tag}..${latest_tag}
     fi
   }
 
   # Preenche o agrupador de commits
   _fill_grouped_commits() {
-    # Converte o texto dos commits em um array por mensagem
-    IFS=$'\n' read -r -d '' -a commits_array <<< "$1"
+    local commit_buffer=""
 
-    for commit in "${commits_array[@]}"; do
-      # Extrai a primeira palavra do commit e converte para maiúsculas
-      local first_word=$(echo "$commit" | grep -oE '^[^!:(]+' | awk '{print toupper($1)}')
-
-      # Verifica se é um BREAKING-CHANGES
-      if echo "$commit" | grep -qE '^[^:]*!'; then
-          grouped_commits["BREAKING-CHANGES"]+="$commit"$'\n'
-      # Verifica se a primeira palavra está na lista de tipos
-      elif [[ ${types[@]} =~ $first_word ]] ; then
-          grouped_commits[$first_word]+="$commit"$'\n'
+    # Processa linha por linha
+    while IFS= read -r line; do
+      if [[ "$line" == "__COMMIT_BREAK__" ]]; then
+        # Quando encontra o delimitador, processa o commit armazenado no buffer
+        if [[ -n "$commit_buffer" ]]; then
+          _process_commit "$commit_buffer"
+        fi
+        commit_buffer=""  # Reinicia o buffer
       else
-          grouped_commits["UNKNOWN"]+="$commit"$'\n'
+        commit_buffer+="$line"$'\n'  # Adiciona a linha ao buffer
       fi
-    done
+    done <<< "$1"
+
+    # Processa o último commit do buffer
+    if [[ -n "$commit_buffer" ]]; then
+      _process_commit "$commit_buffer"
+    fi
+  }
+
+  # Processa cada commit e adiciona ao agrupamento correto
+  _process_commit() {
+    local commit=$(echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+    # Extrai a primeira palavra do commit e converte para maiúsculas
+    local first_word=$(echo "$commit" | grep -oE '^[A-Za-z]+(\([^)]+\))?(!)?' | sed -E 's/\(.*\)//;s/!//' | tr '[:lower:]' '[:upper:]')
+
+    # Verifica se é um BREAKING-CHANGES (contém "!")
+    if echo "$commit" | grep -qE '^[^:]*!'; then
+      grouped_commits["BREAKING-CHANGES"]+="$commit"$'\n\n'
+    # Verifica se a primeira palavra está na lista de tipos
+    elif [[ ${types[@]} =~ $first_word ]] ; then
+      grouped_commits[$first_word]+="$commit"$'\n\n'
+    else
+      grouped_commits["UNKNOWN"]+="$commit"$'\n\n'
+    fi
   }
 
   # Cria o arquivo de release notes
